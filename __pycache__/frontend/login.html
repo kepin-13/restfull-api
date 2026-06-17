@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Python Flask API</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #fff0f5; font-family: 'Segoe UI', sans-serif; }
+        .card-custom { border: none; box-shadow: 0 4px 15px rgba(255, 105, 180, 0.2); border-radius: 12px; }
+        .btn-pink { background-color: #ff69b4; color: white; font-weight: bold; border: none; }
+        .btn-pink:hover { background-color: #ff1493; color: white; }
+    </style>
+</head>
+<body class="d-flex align-items-center justify-content-center vh-100">
+    <div class="card card-custom p-4" style="width: 400px; background: white;">
+        <h3 class="text-center mb-4" style="color: #d147a3;">Login Admin Cloud</h3>
+        <form id="formLogin">
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-muted">Username</label>
+                <input type="text" id="username" class="form-control" required>
+            </div>
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-muted">Password</label>
+                <input type="password" id="password" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-pink w-100 py-2 mb-3">Masuk Sistem</button>
+            <div class="text-center"><a href="register.html" style="color: #ff69b4; text-decoration: none;">Belum punya akun? Daftar</a></div>
+        </form>
+    </div>
+    <script>
+        document.getElementById('formLogin').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            try {
+                const res = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message);
+                    localStorage.setItem('token', data.token); // Menyimpan Token JWT internal Python
+                    window.location.href = 'index.html';
+                } else { 
+                    alert(data.message); 
+                }
+            } catch (error) { 
+                alert('Gagal terhubung ke Backend Python.'); 
+            }
+        });
+    </script>
+</body>
+</html>

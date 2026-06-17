@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Data - Supabase Cloud</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #fff0f5; font-family: 'Segoe UI', sans-serif; }
+        .card-custom { border: none; box-shadow: 0 4px 15px rgba(255, 105, 180, 0.15); border-radius: 12px; }
+        .btn-pink { background-color: #ff69b4; color: white; font-weight: bold; border: none; }
+        .btn-pink:hover { background-color: #ff1493; color: white; }
+        .text-pink { color: #d147a3; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold text-pink" href="#">Dashboard Sistem Terintegrasi Cloud</a>
+            <button class="btn btn-outline-danger btn-sm" onclick="logout()">Keluar Sistem</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card card-custom p-4 bg-white">
+                    <h5 class="fw-bold text-pink mb-3">Tambah Data Mahasiswa</h5>
+                    <form id="formMahasiswa">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">NIM</label>
+                            <input type="text" id="nim" class="form-control" placeholder="Contoh: 2103010" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Nama Lengkap</label>
+                            <input type="text" id="nama" class="form-control" placeholder="Contoh: Alifah Oktavina" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Jurusan</label>
+                            <input type="text" id="jurusan" class="form-control" placeholder="Contoh: Teknik Elektro" required>
+                        </div>
+                        <button type="submit" class="btn btn-pink w-100 py-2">Simpan ke Cloud</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-8 mb-4">
+                <div class="card card-custom p-4 bg-white">
+                    <h5 class="fw-bold text-pink mb-3">Data Mahasiswa Terkini (Realtime Cloud)</h5>
+                    <div id="statusKoneksi" class="alert alert-info py-2 small d-none">Sedang memuat data...</div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>NIM</th>
+                                    <th>Nama</th>
+                                    <th>Jurusan</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelBody">
+                                </tbody>
+                        </table>
+                    </div>
+                    <div id="pesanKosong" class="text-center text-muted my-3 d-none">Tabel data mahasiswa di Supabase masih kosong.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalEdit" tabindex="-1" aria-labelledby="modalEditLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content card-custom p-2">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold text-pink" id="modalEditLabel">Ubah Data Mahasiswa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditMahasiswa">
+                        <input type="hidden" id="edit-id">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">NIM</label>
+                            <input type="text" id="edit-nim" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Nama Lengkap</label>
+                            <input type="text" id="edit-nama" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Jurusan</label>
+                            <input type="text" id="edit-jurusan" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-pink w-100 py-2 mt-2">Simpan Perubahan</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        let semuaDataMahasiswa = [];
+        const bootstrapModalEdit = new bootstrap.Modal(document.getElementById('modalEdit'));
+
+        // ==========================================
+        // FUNGSI 1: MEMUAT DATA MAHASISWA DARI CLOUD (GET)
+        // ==========================================
+        async function muatData() {
+            const statusBox = document.getElementById('statusKoneksi');
+            const pesanKosong = document.getElementById('pesanKosong');
+            const tabelBody = document.getElementById('tabelBody');
+            
+            statusBox.classList.remove('d-none');
+            tabelBody.innerHTML = '';
+            pesanKosong.classList.add('d-none');
+
+            try {
+                const res = await fetch('http://localhost:5000/api/mahasiswa', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                statusBox.classList.add('d-none');
+
+                if (res.ok) {
+                    semuaDataMahasiswa = data; // Simpan ke penampung array lokal
+                    if (data.length === 0) {
+                        pesanKosong.classList.remove('d-none');
+                    } else {
+                        data.forEach(mhs => {
+                            tabelBody.innerHTML += `
+                                <tr>
+                                    <td class="fw-bold">${mhs.nim}</td>
+                                    <td>${mhs.nama}</td>
+                                    <td>${mhs.jurusan}</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-warning text-white btn-sm px-3 me-1 shadow-sm fw-bold" onclick="bukaModalEdit(${mhs.id})">Edit</button>
+                                        <button class="btn btn-danger btn-sm px-3 shadow-sm" onclick="hapusMahasiswa(${mhs.id})">Hapus</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+                } else {
+                    alert('Gagal mengambil data: ' + data.message);
+                }
+            } catch (error) {
+                statusBox.classList.add('d-none');
+                alert('Gagal terhubung ke server Flask!');
+            }
+        }
+
+        // ==========================================
+        // FUNGSI 2: MEMBUKA MODAL EDIT & MENGISI DATA LAMA
+        // ==========================================
+        function bukaModalEdit(id) {
+            const mhs = semuaDataMahasiswa.find(item => item.id === id);
+            if (mhs) {
+                document.getElementById('edit-id').value = mhs.id;
+                document.getElementById('edit-nim').value = mhs.nim;
+                document.getElementById('edit-nama').value = mhs.nama;
+                document.getElementById('edit-jurusan').value = mhs.jurusan;
+                bootstrapModalEdit.show();
+            }
+        }
+
+        // ==========================================
+        // FUNGSI 3: MENGIRIM PERUBAHAN KE BACKEND (PUT)
+        // ==========================================
+        document.getElementById('formEditMahasiswa').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const nim = document.getElementById('edit-nim').value;
+            const nama = document.getElementById('edit-nama').value;
+            const jurusan = document.getElementById('edit-jurusan').value;
+
+            try {
+                const res = await fetch(`http://localhost:5000/api/mahasiswa/${id}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ nim, nama, jurusan })
+                });
+
+                // PERBAIKAN: Selama response status backend bernilai 200/201 (sukses), 
+                // kita paksa sistem langsung menganggap update berhasil tanpa bergantung pada isi body Supabase.
+                if (res.status === 200 || res.status === 204) {
+                    alert('Data mahasiswa berhasil diperbarui!');
+                    bootstrapModalEdit.hide(); // Sembunyikan pop-up modal
+                    await muatData(); // PAKSA Ambil ulang data segar dari database
+                } else {
+                    const result = await res.json();
+                    alert('Gagal memperbarui data: ' + result.message);
+                }
+            } catch (error) {
+                alert('Terjadi kesalahan sistem saat memperbarui data.');
+            }
+        });
+
+        // ==========================================
+        // FUNGSI 4: TAMBAH DATA MAHASISWA BARU (POST)
+        // ==========================================
+        document.getElementById('formMahasiswa').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nim = document.getElementById('nim').value;
+            const nama = document.getElementById('nama').value;
+            const jurusan = document.getElementById('jurusan').value;
+
+            try {
+                const res = await fetch('http://localhost:5000/api/mahasiswa', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ nim, nama, jurusan })
+                });
+
+                if (res.ok) {
+                    alert('Sukses menambah data mahasiswa ke cloud!');
+                    document.getElementById('formMahasiswa').reset();
+                    muatData();
+                } else {
+                    const result = await res.json();
+                    alert('Gagal menyimpan: ' + result.message);
+                }
+            } catch (error) {
+                alert('Terjadi kesalahan sistem saat menyimpan data.');
+            }
+        });
+
+        // ==========================================
+        // FUNGSI 5: HAPUS DATA MAHASISWA (DELETE)
+        // ==========================================
+        async function hapusMahasiswa(id) {
+            if (confirm('Apakah kamu yakin ingin menghapus mahasiswa ini?')) {
+                try {
+                    const res = await fetch(`http://localhost:5000/api/mahasiswa/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        alert('Data berhasil dihapus dari cloud!');
+                        muatData();
+                    } else {
+                        alert('Gagal menghapus data.');
+                    }
+                } catch (error) {
+                    alert('Eror koneksi saat mencoba menghapus.');
+                }
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+        }
+
+        // Load data otomatis saat pertama kali masuk halaman dashboard
+        muatData();
+    </script>
+</body>
+</html>
